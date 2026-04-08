@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>乙醇催化氧化 - 粉色实心双键生长 | 铜还原返回</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+        body {
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            overflow: hidden;
+            background-color: #eef2f5;
+        }
+        .control-panel {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: rgba(255, 255, 255, 0.94);
+            backdrop-filter: blur(10px);
+            border-right: 1px solid rgba(0, 0, 0, 0.08);
+            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.06);
+            padding: 24px 20px;
+            overflow-y: auto;
+            z-index: 20;
+        }
+        @media (max-width: 700px) {
+            .control-panel { width: 280px; transform: translateX(-100%); }
+        }
+        .title {
+            font-size: 1.6rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 6px;
+        }
+        .subtitle {
+            font-size: 0.85rem;
+            color: #5a6e7c;
+            border-left: 3px solid #2a7faa;
+            padding-left: 12px;
+            margin-bottom: 24px;
+        }
+        .tabs {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 8px;
+        }
+        .tab {
+            background: transparent;
+            border: none;
+            font-size: 1rem;
+            font-weight: 500;
+            padding: 6px 0;
+            cursor: pointer;
+            color: #5a6e7c;
+            transition: all 0.2s;
+        }
+        .tab.active {
+            color: #1e6f9f;
+            border-bottom: 2px solid #1e6f9f;
+        }
+        .reaction-badge {
+            background: #1e6f9f10;
+            border-radius: 28px;
+            padding: 12px 16px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 600;
+            color: #1e6f9f;
+            border: 1px solid #1e6f9f30;
+        }
+        .step-btns {
+            margin: 20px 0 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .step-btn {
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            padding: 10px 14px;
+            border-radius: 40px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: 0.2s;
+            text-align: center;
+        }
+        .step-btn.active {
+            background: #2c7da0;
+            color: white;
+            box-shadow: 0 2px 8px rgba(44,125,160,0.3);
+        }
+        .reset-btn {
+            width: 100%;
+            padding: 10px;
+            background: #334155;
+            color: white;
+            border: none;
+            border-radius: 40px;
+            font-weight: 600;
+            margin: 12px 0 20px;
+            cursor: pointer;
+        }
+        .info-box {
+            background: #eef2ff;
+            border-left: 4px solid #1e6f9f;
+            padding: 14px;
+            border-radius: 16px;
+            font-size: 0.8rem;
+            line-height: 1.5;
+            color: #0f172a;
+        }
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.85);
+            backdrop-filter: blur(5px);
+            padding: 10px 14px;
+            border-radius: 28px;
+            font-size: 12px;
+            z-index: 15;
+            pointer-events: none;
+            font-weight: 500;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 5px;
+        }
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+        }
+        .hint {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.65);
+            color: white;
+            padding: 6px 14px;
+            border-radius: 60px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 15;
+            backdrop-filter: blur(4px);
+        }
+    </style>
+</head>
+<body>
+<div class="control-panel" id="controlPanel">
+    <div class="title">🍷 乙醇催化氧化</div>
+    <div class="subtitle">粉色实心双键生长 · 铜还原返回</div>
+    <div class="tabs">
+        <button class="tab" id="tabStructure">🧬 分子结构</button>
+        <button class="tab active" id="tabReaction">⚛️ 化学反应</button>
+    </div>
+    <div class="reaction-badge">🔥 催化氧化 (Cu / CuO)</div>
+    
+    <div class="step-btns" id="oxidationSteps">
+        <button class="step-btn" id="oxStep1">❶ 铜氧化 (Cu + O₂ → CuO)</button>
+        <button class="step-btn" id="oxStep2">❷ 断键活化 (O-H & C-H 断裂)</button>
+        <button class="step-btn" id="oxStep3">❸ 重组生成 (乙醛C=O + H₂O + Cu)</button>
+    </div>
+    
+    <button class="reset-btn" id="resetBtn">⟳ 重置动画 / 视角</button>
+    <div class="info-box" id="infoBox">
+        🔬 催化氧化完整机理：<br>
+        1️⃣ 铜主动移向氧气，形成CuO，O-O键消失；<br>
+        2️⃣ 氧化铜移向乙醇，O-H和C-H键断裂；<br>
+        3️⃣ 断键后暂停0.02秒，氧化铜进一步靠近，保留单键，粉色实心第二键动态生长成C=O双键，水分子生成并移回氧气初始位置，铜还原并返回初始位置。
+    </div>
+</div>
+<div id="canvas-container"></div>
+<div class="legend">
+    <div class="legend-item"><div class="legend-color" style="background:#2c3e50;"></div> 碳 (C)</div>
+    <div class="legend-item"><div class="legend-color" style="background:#f8f9fa; border:1px solid #aaa;"></div> 氢 (H)</div>
+    <div class="legend-item"><div class="legend-color" style="background:#e63946;"></div> 氧 (O)</div>
+    <div class="legend-item"><div class="legend-color" style="background:#fd7e14;"></div> 铜 (Cu)</div>
+</div>
+<div class="hint">🖱️ 鼠标拖拽旋转 | 右键平移 | 滚轮缩放</div>
+
+<script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.128.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.128.0/examples/jsm/"
+        }
+    }
+</script>
+
+<script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+    // ---------- 全局变量 ----------
+    let scene, camera, renderer, labelRenderer, controls;
+    let mainGroup = new THREE.Group();
+    let animationStep = 0;
+    let dynamicElements = [];
+    let autoStep3Timer = null;
+    
+    // 原子视觉配置
+    const atomConfig = {
+        C: { radius: 0.48, color: 0x2c3e50 },
+        H: { radius: 0.30, color: 0xf0f2f5 },
+        O: { radius: 0.44, color: 0xe63946 },
+        Cu: { radius: 0.52, color: 0xfd7e14 },
+        CuO: { radius: 0.52, color: 0xb45f1b }
+    };
+    
+    // 氧气分子中两个氧原子的初始位置（垂直排列）
+    const O2_POS_TOP = { x: 5.0, y: 0.5, z: 0 };
+    const O2_POS_BOTTOM = { x: 5.0, y: -0.5, z: 0 };
+    
+    // 铜原子的初始位置（用于返回）
+    const CU_INIT_TOP = { x: 6.8, y: 2.0, z: 0 };
+    const CU_INIT_BOTTOM = { x: 6.8, y: -2.0, z: 0 };
+    
+    // ========== 乙醇分子构建 ==========
+    const C1_pos = new THREE.Vector3(-0.75, 0, 0);
+    const C2_pos = new THREE.Vector3(0.75, 0, 0);
+    const H_methyl = [
+        new THREE.Vector3(-1.32, 0.48, 0.82),
+        new THREE.Vector3(-1.32, 0.48, -0.82),
+        new THREE.Vector3(-1.32, -0.96, 0)
+    ];
+    const H_methylene_rel = [
+        new THREE.Vector3(0.52, -0.58, 0.68),
+        new THREE.Vector3(0.52, -0.58, -0.68)
+    ];
+    const O_rel = new THREE.Vector3(0.72, 1.08, 0);
+    const baseOH_dir = new THREE.Vector3(0.209, -0.506, 0.788).normalize();
+    const baseOH_vec = baseOH_dir.clone().multiplyScalar(0.96);
+    const O_pos_base = C2_pos.clone().add(O_rel);
+    const axisDir = new THREE.Vector3().subVectors(C2_pos, O_pos_base).normalize();
+    const rotQuat = new THREE.Quaternion().setFromAxisAngle(axisDir, -51 * Math.PI / 180);
+    const OH_H_rel = baseOH_vec.clone().applyQuaternion(rotQuat);
+    
+    function createAtom(type, x, y, z, group) {
+        const cfg = atomConfig[type] || atomConfig.C;
+        const geometry = new THREE.SphereGeometry(cfg.radius, 48, 48);
+        const material = new THREE.MeshStandardMaterial({ color: cfg.color, roughness: 0.25, metalness: 0.05 });
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.set(x, y, z);
+        mesh.castShadow = true;
+        group.add(mesh);
+        return mesh;
+    }
+    
+    function createBond(p1, p2, radius = 0.07, color = 0xbcada0) {
+        const start = new THREE.Vector3(p1.x, p1.y, p1.z);
+        const end = new THREE.Vector3(p2.x, p2.y, p2.z);
+        const dir = new THREE.Vector3().subVectors(end, start);
+        const length = dir.length();
+        const cylinder = new THREE.Mesh(
+            new THREE.CylinderGeometry(radius, radius, length, 12),
+            new THREE.MeshStandardMaterial({ color: color, roughness: 0.5 })
+        );
+        cylinder.position.copy(start.clone().add(end).divideScalar(2));
+        cylinder.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir.clone().normalize());
+        return cylinder;
+    }
+    
+    // 创建可生长的实心粉色圆柱体（作为第二根键）
+    function createGrowingPinkBond(p1, p2, radius = 0.08, color = 0xff69b4, offset = 0.12) {
+        const start = new THREE.Vector3(p1.x, p1.y, p1.z);
+        const end = new THREE.Vector3(p2.x, p2.y, p2.z);
+        const dir = new THREE.Vector3().subVectors(end, start).normalize();
+        const length = dir.length();
+        // 计算垂直于dir的偏移方向（用于并排双键）
+        let perp = new THREE.Vector3(1, 0, 0);
+        if (Math.abs(dir.dot(perp)) > 0.9999) perp = new THREE.Vector3(0, 1, 0);
+        const axis = new THREE.Vector3().crossVectors(dir, perp).normalize();
+        const offsetVec = new THREE.Vector3().crossVectors(axis, dir).normalize().multiplyScalar(offset);
+        
+        const posCenter = start.clone().add(end).multiplyScalar(0.5);
+        const cylinder = new THREE.Mesh(
+            new THREE.CylinderGeometry(radius, radius, length, 12),
+            new THREE.MeshStandardMaterial({ color: color, roughness: 0.3, emissive: 0xff1493, emissiveIntensity: 0.2 })
+        );
+        cylinder.position.copy(posCenter.clone().add(offsetVec));
+        cylinder.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir);
+        cylinder.scale.set(1, 0, 1);  // 初始长度为0，逐渐生长为实心圆柱
+        return cylinder;
+    }
+    
+    // 创建规范的水分子（键角104.5°，键长0.8）
+    function createWaterMolecule(oxygenPos, h1Pos, h2Pos) {
+        const group = new THREE.Group();
+        const oAtom = createAtom('O', oxygenPos.x, oxygenPos.y, oxygenPos.z, group);
+        const h1Atom = createAtom('H', h1Pos.x, h1Pos.y, h1Pos.z, group);
+        const h2Atom = createAtom('H', h2Pos.x, h2Pos.y, h2Pos.z, group);
+        const bond1 = createBond(oxygenPos, h1Pos, 0.06);
+        const bond2 = createBond(oxygenPos, h2Pos, 0.06);
+        group.add(bond1, bond2);
+        return group;
+    }
+    
+    // 根据氧位置和大致方向计算两个氢的位置（键长0.8，键角104.5°）
+    function getWaterHydrogens(oxygenPos, directionHint = new THREE.Vector3(0, 1, 0)) {
+        const bondLen = 0.8;
+        const angleRad = (104.5 * Math.PI) / 180;
+        const halfAngle = angleRad / 2;
+        let up = directionHint.clone().normalize();
+        let right = new THREE.Vector3(1, 0, 0);
+        if (Math.abs(up.dot(right)) > 0.9999) right = new THREE.Vector3(0, 0, 1);
+        const forward = new THREE.Vector3().crossVectors(up, right).normalize();
+        const realRight = new THREE.Vector3().crossVectors(forward, up).normalize();
+        const dir1 = new THREE.Vector3(Math.sin(halfAngle), Math.cos(halfAngle), 0);
+        const dir2 = new THREE.Vector3(-Math.sin(halfAngle), Math.cos(halfAngle), 0);
+        const worldDir1 = new THREE.Vector3(
+            dir1.x * realRight.x + dir1.y * up.x,
+            dir1.x * realRight.y + dir1.y * up.y,
+            dir1.x * realRight.z + dir1.y * up.z
+        ).normalize();
+        const worldDir2 = new THREE.Vector3(
+            dir2.x * realRight.x + dir2.y * up.x,
+            dir2.x * realRight.y + dir2.y * up.y,
+            dir2.x * realRight.z + dir2.y * up.z
+        ).normalize();
+        const h1Pos = oxygenPos.clone().add(worldDir1.multiplyScalar(bondLen));
+        const h2Pos = oxygenPos.clone().add(worldDir2.multiplyScalar(bondLen));
+        return { h1Pos, h2Pos };
+    }
+    
+    function createPreciseEthanol(x, y, z) {
+        const group = new THREE.Group();
+        group.position.set(x, y, z);
+        
+        const H2_positions = H_methylene_rel.map(rel => rel.clone().add(C2_pos));
+        const O_pos = O_rel.clone().add(C2_pos);
+        const OH_pos = OH_H_rel.clone().add(O_pos);
+        
+        const C1 = createAtom('C', C1_pos.x, C1_pos.y, C1_pos.z, group);
+        const C2 = createAtom('C', C2_pos.x, C2_pos.y, C2_pos.z, group);
+        const O = createAtom('O', O_pos.x, O_pos.y, O_pos.z, group);
+        const H_OH = createAtom('H', OH_pos.x, OH_pos.y, OH_pos.z, group);
+        
+        H_methyl.forEach(pos => createAtom('H', pos.x, pos.y, pos.z, group));
+        const H_methylene_atoms = H2_positions.map(pos => createAtom('H', pos.x, pos.y, pos.z, group));
+        const H4 = H_methylene_atoms[0];
+        const H5 = H_methylene_atoms[1];
+        
+        const bonds = [];
+        bonds.push(createBond(C1_pos, C2_pos, 0.08));
+        H_methyl.forEach(hPos => bonds.push(createBond(C1_pos, hPos, 0.07)));
+        const c2hBonds = H2_positions.map(hPos => createBond(C2_pos, hPos, 0.07));
+        bonds.push(...c2hBonds);
+        // 保留原有的C-O单键（不删除）
+        const coSingleBond = createBond(C2_pos, O_pos, 0.08);
+        bonds.push(coSingleBond);
+        const ohBond = createBond(O_pos, OH_pos, 0.07);
+        bonds.push(ohBond);
+        bonds.forEach(b => group.add(b));
+        
+        group.userData = {
+            C1, C2, O, H_OH, H4, H5,
+            OHBond: ohBond,
+            CHBonds: c2hBonds,
+            COSingleBond: coSingleBond,
+            step2Done: false,
+            hydroxylDetached: false,
+            chBroken: false,
+            recombined: false,
+            secondBondGrowing: false,
+            secondBondMesh: null,
+            waterCreated: false
+        };
+        return group;
+    }
+    
+    function clearDynamic() {
+        if (autoStep3Timer) clearTimeout(autoStep3Timer);
+        autoStep3Timer = null;
+        dynamicElements.forEach(obj => {
+            if (obj.parent) obj.parent.remove(obj);
+            if (obj.geometry) obj.geometry.dispose();
+        });
+        dynamicElements = [];
+        if (window._movingWaters) window._movingWaters = [];
+        if (window._movingCus) window._movingCus = [];
+    }
+    
+    function initScene() {
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xf0f4fa);
+        scene.fog = new THREE.FogExp2(0xf0f4fa, 0.008);
+        
+        camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(8, 0, 16);
+        camera.lookAt(0, 0, 0);
+        
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+        
+        labelRenderer = new CSS2DRenderer();
+        labelRenderer.setSize(window.innerWidth, window.innerHeight);
+        labelRenderer.domElement.style.position = 'absolute';
+        labelRenderer.domElement.style.top = '0px';
+        labelRenderer.domElement.style.left = '0px';
+        labelRenderer.domElement.style.pointerEvents = 'none';
+        document.getElementById('canvas-container').appendChild(labelRenderer.domElement);
+        
+        controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.rotateSpeed = 1.2;
+        controls.zoomSpeed = 1.2;
+        controls.enablePan = true;
+        controls.target.set(0, 0, 0);
+        
+        const ambient = new THREE.AmbientLight(0xffffff, 0.65);
+        scene.add(ambient);
+        const mainLight = new THREE.DirectionalLight(0xfff5e0, 1.0);
+        mainLight.position.set(5, 8, 4);
+        mainLight.castShadow = true;
+        scene.add(mainLight);
+        const fillLight = new THREE.PointLight(0xccaa88, 0.45);
+        fillLight.position.set(-2, 2, 3);
+        scene.add(fillLight);
+        const backLight = new THREE.PointLight(0x88aacc, 0.35);
+        backLight.position.set(1, 1.5, -4);
+        scene.add(backLight);
+        
+        const gridHelper = new THREE.GridHelper(20, 20, 0xaaccbb, 0xcce5dd);
+        gridHelper.position.y = -2.2;
+        gridHelper.material.transparent = true;
+        gridHelper.material.opacity = 0.2;
+        scene.add(gridHelper);
+        
+        scene.add(mainGroup);
+    }
+    
+    function initOxidationModel() {
+        clearDynamic();
+        while(mainGroup.children.length > 0) mainGroup.remove(mainGroup.children[0]);
+        
+        // 上下乙醇
+        const ethanolTop = createPreciseEthanol(0, 2.0, 0);
+        const ethanolBottom = createPreciseEthanol(0, -2.0, 0);
+        ethanolTop.name = 'ethanolTop';
+        ethanolBottom.name = 'ethanolBottom';
+        mainGroup.add(ethanolTop, ethanolBottom);
+        
+        // 铜原子初始在右侧，记录初始位置
+        const cuTop = createAtom('Cu', CU_INIT_TOP.x, CU_INIT_TOP.y, CU_INIT_TOP.z, mainGroup);
+        const cuBottom = createAtom('Cu', CU_INIT_BOTTOM.x, CU_INIT_BOTTOM.y, CU_INIT_BOTTOM.z, mainGroup);
+        cuTop.name = 'CuTop';
+        cuBottom.name = 'CuBottom';
+        cuTop.userData = { oxidized: false, oxygenAtom: null, initialPos: new THREE.Vector3(CU_INIT_TOP.x, CU_INIT_TOP.y, CU_INIT_TOP.z) };
+        cuBottom.userData = { oxidized: false, oxygenAtom: null, initialPos: new THREE.Vector3(CU_INIT_BOTTOM.x, CU_INIT_BOTTOM.y, CU_INIT_BOTTOM.z) };
+        
+        // 氧气分子（两个氧原子垂直排列）
+        const o2Top = createAtom('O', O2_POS_TOP.x, O2_POS_TOP.y, O2_POS_TOP.z, mainGroup);
+        const o2Bottom = createAtom('O', O2_POS_BOTTOM.x, O2_POS_BOTTOM.y, O2_POS_BOTTOM.z, mainGroup);
+        o2Top.name = 'O2Top';
+        o2Bottom.name = 'O2Bottom';
+        const o2Bond = createBond(o2Top.position, o2Bottom.position, 0.08, 0xcc5555);
+        mainGroup.add(o2Bond);
+        dynamicElements.push(o2Bond);
+        
+        mainGroup.userData = {
+            ethanolTop, ethanolBottom,
+            cuTop, cuBottom,
+            o2Top, o2Bottom,
+            o2Bond: o2Bond
+        };
+    }
+    
+    function updateAnimations() {
+        if (!mainGroup.userData) return;
+        const data = mainGroup.userData;
+        const { ethanolTop, ethanolBottom, cuTop, cuBottom, o2Top, o2Bottom, o2Bond } = data;
+        if (!ethanolTop) return;
+        
+        // 第一步：铜主动移动靠近氧气分子中的对应氧原子，结合形成氧化铜，并移除O-O键
+        if (animationStep === 1) {
+            const moveCu = (cu, targetO, isTop) => {
+                if (!cu.userData.oxidized) {
+                    const targetPos = targetO.position.clone();
+                    if (cu.position.distanceTo(targetPos) > 0.2) {
+                        const dir = new THREE.Vector3().subVectors(targetPos, cu.position).normalize();
+                        cu.position.add(dir.multiplyScalar(0.08));
+                    } else {
+                        cu.material.color.setHex(atomConfig.CuO.color);
+                        cu.userData.oxidized = true;
+                        // 添加一个吸附的氧原子，但不创建Cu-O键
+                        const attachedO = createAtom('O', cu.position.x + 0.5, cu.position.y + 0.2, 0.3, mainGroup);
+                        cu.userData.oxygenAtom = attachedO;
+                        dynamicElements.push(attachedO);
+                        // 隐藏原来的氧气原子
+                        targetO.visible = false;
+                    }
+                }
+            };
+            moveCu(cuTop, o2Top, true);
+            moveCu(cuBottom, o2Bottom, false);
+            
+            // 当两个铜都结合后，移除O-O键
+            if (cuTop.userData.oxidized && cuBottom.userData.oxidized && o2Bond && o2Bond.parent) {
+                o2Bond.parent.remove(o2Bond);
+                dynamicElements = dynamicElements.filter(obj => obj !== o2Bond);
+                data.o2Bond = null;
+            }
+        }
+        // 第二步：氧化铜移动到乙醇分子旁边，并进行断键活化（O-H和C-H断裂）
+        else if (animationStep === 2) {
+            let bothDone = true;
+            const processEthanol = (cu, ethanol, isTop) => {
+                if (cu.userData.oxidized && !ethanol.userData.step2Done) {
+                    const targetPos = ethanol.userData.O.position.clone();
+                    if (cu.position.distanceTo(targetPos) > 0.8) {
+                        const dir = new THREE.Vector3().subVectors(targetPos, cu.position).normalize();
+                        cu.position.add(dir.multiplyScalar(0.06));
+                    } else {
+                        // 开始断键
+                        if (!ethanol.userData.step2Done) {
+                            // O-H键拉伸
+                            const ohBond = ethanol.userData.OHBond;
+                            const hOH = ethanol.userData.H_OH;
+                            if (ohBond && hOH) {
+                                const moveY = (ethanol.position.y > 0) ? 0.028 : -0.028;
+                                hOH.position.y += moveY;
+                                hOH.position.x += 0.018;
+                                if (Math.abs(hOH.position.y - ethanol.position.y) > 1.2) {
+                                    ohBond.visible = false;
+                                    ethanol.userData.hydroxylDetached = true;
+                                } else {
+                                    if (ohBond.parent) ohBond.parent.remove(ohBond);
+                                    const newBond = createBond(ethanol.userData.O.position, hOH.position, 0.07);
+                                    ethanol.add(newBond);
+                                    ethanol.userData.OHBond = newBond;
+                                    dynamicElements.push(newBond);
+                                }
+                            }
+                            // C-H键拉伸 (α-氢)
+                            const chBond = ethanol.userData.CHBonds[0];
+                            const hAlpha = ethanol.userData.H4;
+                            if (chBond && hAlpha && !ethanol.userData.chBroken) {
+                                const moveY = (ethanol.position.y > 0) ? 0.022 : -0.022;
+                                hAlpha.position.y += moveY;
+                                hAlpha.position.x += 0.015;
+                                if (Math.abs(hAlpha.position.y - ethanol.position.y) > 1.0) {
+                                    chBond.visible = false;
+                                    ethanol.userData.chBroken = true;
+                                } else {
+                                    if (chBond.parent) chBond.parent.remove(chBond);
+                                    const newChBond = createBond(ethanol.userData.C2.position, hAlpha.position, 0.07);
+                                    ethanol.add(newChBond);
+                                    ethanol.userData.CHBonds[0] = newChBond;
+                                    dynamicElements.push(newChBond);
+                                }
+                            }
+                            if (ethanol.userData.hydroxylDetached && ethanol.userData.chBroken) {
+                                ethanol.userData.step2Done = true;
+                            }
+                        }
+                    }
+                }
+                if (!ethanol.userData.step2Done) bothDone = false;
+            };
+            processEthanol(cuTop, ethanolTop, true);
+            processEthanol(cuBottom, ethanolBottom, false);
+            
+            // 当两个乙醇的断键都完成后，暂停0.02秒后自动进入第三步
+            if (bothDone && !window._step2CompletedFlag) {
+                window._step2CompletedFlag = true;
+                if (autoStep3Timer) clearTimeout(autoStep3Timer);
+                autoStep3Timer = setTimeout(() => {
+                    if (animationStep === 2) {
+                        setAnimationStep(3);
+                    }
+                }, 20);
+            }
+        }
+        // 第三步：氧化铜进一步靠近乙醇，粉色实心第二键动态生长成双键，水分子生成并移动到氧气初始位置，铜还原并返回初始位置
+        else if (animationStep === 3) {
+            // 先让氧化铜再靠近一点（如果距离仍然较远）
+            [cuTop, cuBottom].forEach((cu, idx) => {
+                const eth = idx === 0 ? ethanolTop : ethanolBottom;
+                if (cu.userData.oxidized && !eth.userData.recombined) {
+                    const targetPos = eth.userData.O.position.clone();
+                    if (cu.position.distanceTo(targetPos) > 0.5) {
+                        const dir = new THREE.Vector3().subVectors(targetPos, cu.position).normalize();
+                        cu.position.add(dir.multiplyScalar(0.05));
+                    }
+                }
+            });
+            
+            [ethanolTop, ethanolBottom].forEach((eth, idx) => {
+                if (!eth.userData.recombined) {
+                    // 启动粉色第二键生长（实心圆柱）
+                    if (!eth.userData.secondBondGrowing) {
+                        const Opos = eth.userData.O.position;
+                        const C2pos = eth.userData.C2.position;
+                        const growingBond = createGrowingPinkBond(C2pos, Opos, 0.08, 0xff69b4, 0.12);
+                        eth.add(growingBond);
+                        eth.userData.secondBondMesh = growingBond;
+                        eth.userData.secondBondGrowing = true;
+                        dynamicElements.push(growingBond);
+                    }
+                    
+                    // 更新生长进度（实线逐渐伸长）
+                    if (eth.userData.secondBondMesh && eth.userData.secondBondGrowing) {
+                        const bondMesh = eth.userData.secondBondMesh;
+                        let newScale = (bondMesh.scale.y || 0) + 0.05;
+                        if (newScale >= 1) {
+                            newScale = 1;
+                            eth.userData.secondBondGrowing = false;
+                        }
+                        bondMesh.scale.set(1, newScale, 1);
+                    }
+                    
+                    // 生成规范的水分子（键角104.5°）
+                    const cu = (eth === ethanolTop) ? cuTop : cuBottom;
+                    const oxygenFromCuO = cu.userData.oxygenAtom;
+                    if (oxygenFromCuO && eth.userData.H_OH && eth.userData.H4 && !eth.userData.waterCreated) {
+                        const hHydroxylPos = eth.userData.H_OH.position.clone();
+                        const hAlphaPos = eth.userData.H4.position.clone();
+                        const oxygenPos = oxygenFromCuO.position.clone();
+                        const center = hHydroxylPos.clone().add(hAlphaPos).multiplyScalar(0.5);
+                        const upDir = center.clone().sub(oxygenPos).normalize();
+                        const { h1Pos, h2Pos } = getWaterHydrogens(oxygenPos, upDir);
+                        const waterGroup = createWaterMolecule(oxygenPos, h1Pos, h2Pos);
+                        mainGroup.add(waterGroup);
+                        
+                        // 移除旧的原子
+                        if (oxygenFromCuO.parent) oxygenFromCuO.parent.remove(oxygenFromCuO);
+                        if (eth.userData.H_OH.parent) eth.userData.H_OH.parent.remove(eth.userData.H_OH);
+                        if (eth.userData.H4.parent) eth.userData.H4.parent.remove(eth.userData.H4);
+                        
+                        const targetPos = new THREE.Vector3(5.0, eth.position.y > 0 ? 0.5 : -0.5, 0);
+                        if (!window._movingWaters) window._movingWaters = [];
+                        window._movingWaters.push({ group: waterGroup, targetPos, arrived: false });
+                        eth.userData.waterCreated = true;
+                        
+                        // 铜还原颜色，并准备移动回初始位置
+                        if (cu) {
+                            cu.material.color.setHex(atomConfig.Cu.color);
+                            if (!window._movingCus) window._movingCus = [];
+                            window._movingCus.push({ cu: cu, targetPos: cu.userData.initialPos.clone(), arrived: false });
+                        }
+                        eth.userData.recombined = true;
+                    }
+                }
+            });
+            
+            // 移动水分子到目标位置
+            if (window._movingWaters) {
+                for (let w of window._movingWaters) {
+                    if (!w.arrived) {
+                        const delta = new THREE.Vector3().subVectors(w.targetPos, w.group.position);
+                        if (delta.length() > 0.05) {
+                            w.group.position.add(delta.multiplyScalar(0.05));
+                        } else {
+                            w.group.position.copy(w.targetPos);
+                            w.arrived = true;
+                        }
+                    }
+                }
+            }
+            
+            // 移动铜原子回初始位置
+            if (window._movingCus) {
+                for (let c of window._movingCus) {
+                    if (!c.arrived) {
+                        const delta = new THREE.Vector3().subVectors(c.targetPos, c.cu.position);
+                        if (delta.length() > 0.05) {
+                            c.cu.position.add(delta.multiplyScalar(0.05));
+                        } else {
+                            c.cu.position.copy(c.targetPos);
+                            c.arrived = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    function resetAll() {
+        if (autoStep3Timer) clearTimeout(autoStep3Timer);
+        autoStep3Timer = null;
+        window._step2CompletedFlag = false;
+        window._movingWaters = [];
+        window._movingCus = [];
+        animationStep = 0;
+        initOxidationModel();
+        document.querySelectorAll('.step-btn').forEach(btn => btn.classList.remove('active'));
+        controls.target.set(0, 0, 0);
+        camera.position.set(8, 0, 16);
+        controls.update();
+    }
+    
+    function setAnimationStep(step) {
+        animationStep = step;
+        document.querySelectorAll('.step-btn').forEach((btn, idx) => {
+            if (idx + 1 === step) btn.classList.add('active');
+            else btn.classList.remove('active');
+        });
+        if (step === 3 && autoStep3Timer) {
+            clearTimeout(autoStep3Timer);
+            autoStep3Timer = null;
+        }
+    }
+    
+    document.getElementById('oxStep1').addEventListener('click', () => setAnimationStep(1));
+    document.getElementById('oxStep2').addEventListener('click', () => setAnimationStep(2));
+    document.getElementById('oxStep3').addEventListener('click', () => setAnimationStep(3));
+    document.getElementById('resetBtn').addEventListener('click', resetAll);
+    
+    const tabStructure = document.getElementById('tabStructure');
+    const tabReaction = document.getElementById('tabReaction');
+    const infoBox = document.getElementById('infoBox');
+    tabStructure.addEventListener('click', () => {
+        tabStructure.classList.add('active');
+        tabReaction.classList.remove('active');
+        infoBox.innerHTML = '📐 高精度乙醇分子模型：C-O-H键角108.5°，羟基氢绕C-O轴顺时针旋转51°。';
+    });
+    tabReaction.addEventListener('click', () => {
+        tabReaction.classList.add('active');
+        tabStructure.classList.remove('active');
+        infoBox.innerHTML = '🔬 催化氧化完整机理：<br>1️⃣ 铜主动移向氧气，形成CuO，O-O键消失；<br>2️⃣ 氧化铜移向乙醇，O-H和C-H键断裂；<br>3️⃣ 断键后暂停0.02秒，氧化铜进一步靠近，保留单键，粉色实心第二键动态生长成C=O双键，水分子生成并移回氧气初始位置，铜还原并返回初始位置。';
+    });
+    
+    initScene();
+    initOxidationModel();
+    
+    function animate() {
+        requestAnimationFrame(animate);
+        updateAnimations();
+        controls.update();
+        renderer.render(scene, camera);
+        labelRenderer.render(scene, camera);
+    }
+    animate();
+    
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        labelRenderer.setSize(window.innerWidth, window.innerHeight);
+    });
+    
+    setInterval(() => {
+        if (animationStep === 0 && mainGroup) {
+            mainGroup.rotation.y += 0.002;
+        }
+    }, 50);
+</script>
+</body>
+</html>
